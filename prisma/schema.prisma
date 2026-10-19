@@ -1,0 +1,147 @@
+// Laklapa - מבנה מסד הנתונים
+// מסמך האפיון המלא: docs/SPEC-laklapa.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  RECEIVED
+  IN_PREPARATION
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum DeliveryMethod {
+  DELIVERY
+  PICKUP
+}
+
+enum FlowerColor {
+  WHITE
+  PINK
+  RED
+  YELLOW
+  PURPLE
+  MIXED
+}
+
+/// משתמשות המערכת: לקוחות ומעצבות
+model User {
+  id           Int      @id @default(autoincrement())
+  fullName     String   @map("full_name") @db.VarChar(60)
+  email        String   @unique @db.VarChar(254)
+  phone        String   @db.VarChar(15)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  orders          Order[]
+  contactMessages ContactMessage[]
+
+  @@index([role])
+  @@map("users")
+}
+
+/// קטגוריות מוצרים
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+/// מוצרי הקטלוג
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(80)
+  description String   @db.VarChar(1000)
+  price       Decimal  @db.Decimal(10, 2)
+  imageUrl    String   @map("image_url") @db.VarChar(500)
+  categoryId  Int      @map("category_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+/// הזמנות של לקוחות
+model Order {
+  id              Int            @id @default(autoincrement())
+  userId          Int            @map("user_id")
+  status          OrderStatus    @default(RECEIVED)
+  deliveryMethod  DeliveryMethod @map("delivery_method")
+  deliveryAddress String?        @map("delivery_address") @db.VarChar(200)
+  recipientName   String         @map("recipient_name") @db.VarChar(60)
+  recipientPhone  String         @map("recipient_phone") @db.VarChar(15)
+  requestedDate   DateTime       @map("requested_date") @db.Date
+  greetingText    String?        @map("greeting_text") @db.VarChar(300)
+  totalAmount     Decimal        @map("total_amount") @db.Decimal(10, 2)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([requestedDate])
+  @@map("orders")
+}
+
+/// מוצר בתוך הזמנה, כולל ההתאמה האישית שלו
+model OrderItem {
+  id             Int         @id @default(autoincrement())
+  orderId        Int         @map("order_id")
+  productId      Int         @map("product_id")
+  quantity       Int
+  preferredColor FlowerColor @map("preferred_color")
+  notes          String?     @db.VarChar(300)
+  unitPrice      Decimal     @map("unit_price") @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+/// הודעות "צרי קשר"
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  name      String   @db.VarChar(60)
+  email     String   @db.VarChar(254)
+  phone     String?  @db.VarChar(15)
+  subject   String   @db.VarChar(100)
+  message   String   @db.VarChar(2000)
+  isHandled Boolean  @default(false) @map("is_handled")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([isHandled])
+  @@map("contact_messages")
+}

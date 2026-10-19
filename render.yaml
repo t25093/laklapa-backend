@@ -1,0 +1,35 @@
+# הגדרות פריסה ל-Render (Blueprint)
+# מסד הנתונים נמצא אצל ספק נפרד (למשל Neon), ולכן אין כאן database.
+services:
+  - type: web
+    name: laklapa-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    # --include=dev: כדי ש-TypeScript וכלי הבנייה יותקנו גם כש-NODE_ENV=production
+    buildCommand: npm install --include=dev && npm run build
+    # מריץ Migrations, יוצר מעצבת ראשונה (אם הוגדרה) ומפעיל את השרת
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: BCRYPT_ROUNDS
+        value: "10"
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_ADMIN_NAME
+        sync: false
